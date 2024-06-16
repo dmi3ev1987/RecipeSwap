@@ -77,7 +77,8 @@ class Recipe(models.Model):
         return self.name
 
 
-class Subscribtion(models.Model):
+# Subscribtions
+class UserWithRecipes(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
