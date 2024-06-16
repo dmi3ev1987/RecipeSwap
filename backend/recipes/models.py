@@ -78,7 +78,11 @@ class Recipe(models.Model):
 
 
 class Subscribtion(models.Model):
-    author = models.ManyToManyField(User, verbose_name='Автор')
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Автор',
+    )
     recipe = models.ManyToManyField(Recipe, verbose_name='Рецепт')
 
     class Meta:
