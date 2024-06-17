@@ -140,6 +140,7 @@ dmypy.json
 
 static/
 media/
+data/
 
 # ruff
 pyproject.toml
