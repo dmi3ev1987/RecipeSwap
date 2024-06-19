@@ -14,4 +14,5 @@ router_v1.register(r'tags', TagViewSet)
 
 urlpatterns = [
     path('', include(router_v1.urls)),
+    path('', include('djoser.urls')),
 ]
