@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.urls import include, path
+from django.views.decorators.csrf import csrf_exempt
 
 from .views import (
     IngredientViewSet,
     TagViewSet,
+    UserMeAvatarAPIView,
 )
 
 if settings.DEBUG:
@@ -20,4 +22,9 @@ urlpatterns = [
     path('', include(router_v1.urls)),
     path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
+    path(
+        'users/me/avatar/',
+        csrf_exempt(UserMeAvatarAPIView.as_view()),
+        name='avatar',
+    ),
 ]
