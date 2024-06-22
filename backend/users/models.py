@@ -8,4 +8,4 @@ class CustomUser(AbstractUser):
     email = models.EmailField('Адрес электронной почты', blank=False)
     is_subscribed = models.BooleanField('Подписка', default=False)
     avatar = models.URLField('Аватар', blank=True)
-    REQUIRED_FIELDS = ('email', 'first_name', 'last_name')
+    REQUIRED_FIELDS = ('email', 'first_name', 'last_name', 'password')
