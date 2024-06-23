@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .views import (
     IngredientViewSet,
+    RecepiViewSet,
     TagViewSet,
     UserMeAvatarAPIView,
 )
@@ -16,7 +17,9 @@ else:
 router_v1 = Router()
 router_v1.register(r'ingredients', IngredientViewSet)
 router_v1.register(r'tags', TagViewSet)
-
+######## new code from here ########
+router_v1.register(r'recipes', RecepiViewSet)
+######### end of new code ##########
 
 urlpatterns = [
     path('', include(router_v1.urls)),

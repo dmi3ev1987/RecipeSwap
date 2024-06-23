@@ -2,7 +2,7 @@ import base64
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from recipes.models import Ingredient, Tag
+from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
 from rest_framework import serializers
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.validators import UniqueValidator
@@ -96,3 +96,80 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         model = Tag
+
+####################################
+######## new code from here ########
+####################################
+
+class IngredientInRecipeSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
+
+    class Meta:
+        model = IngredientInRecipe
+        fields = ('id', 'amount')
+
+
+class RecipeMetaSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
+        )
+        model = Recipe
+
+
+class RecipeRetrieveSerializer(RecipeMetaSerializer):
+    pass
+
+
+class AuthorSerializer(UserMeSerializer):
+    username = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        default=serializers.CurrentUserDefault(),
+    )
+
+
+class RecipeCreateSerializer(RecipeMetaSerializer):
+    author = AuthorSerializer(read_only=True)
+    image = Base64ImageField(required=True, allow_null=False)
+    ingredients = IngredientInRecipeSerializer(many=True, required=True)
+
+
+    def create(self, validated_data):
+        # Уберём список достижений из словаря validated_data и сохраним его
+        ingredients = validated_data.pop('ingredients')
+        tags = validated_data.pop('tags')
+        # author = validated_data.pop('author')
+        request = self.context.get('request')
+
+        # Создадим нового котика пока без достижений, данных нам достаточно
+        recipe = Recipe.objects.create(author=request.user, **validated_data)
+        # recipe = Recipe.objects.create(**validated_data)
+        # recipe.author = self.request.user
+        recipe.save()
+        # ingredient = Ingredient.objects.filter(pk=ingredients[0].get('id'))
+
+        # Для каждого достижения из списка достижений
+        # for ingredient in ingredients:
+        #     # Создадим новую запись или получим существующий экземпляр из БД
+        #     # current_ingredient, status = IngredientInRecipe.objects.get_or_create(
+        #     #     **ingredient,
+        #     # )
+        #     # Поместим ссылку на каждое достижение во вспомогательную таблицу
+        #     # Не забыв указать к какому котику оно относится
+        #     IngredientInRecipe.objects.create(
+        #         amount=current_ingredient, recipe=recipe,
+        #     )
+        return recipe
+
+
+class RecipeUpdateSerializer(RecipeCreateSerializer):
+    image = Base64ImageField(required=False, allow_null=False)

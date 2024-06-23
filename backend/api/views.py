@@ -1,14 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.models import Ingredient, Tag
+from recipes.models import Ingredient, Recipe, Tag
 from rest_framework import filters, status, viewsets
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import (
     IngredientSerializer,
+    RecipeCreateSerializer,
+    RecipeRetrieveSerializer,
+    RecipeUpdateSerializer,
     TagSerializer,
     UserAvatarSerializer,
 )
@@ -38,7 +40,6 @@ class IngredientViewSet(viewsets.ModelViewSet):
     http_method_names = ('get',)
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()
-    permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend, filters.SearchFilter)
     filterset_fields = ('name',)
     search_fields = ('^name',)
@@ -49,5 +50,20 @@ class TagViewSet(viewsets.ModelViewSet):
     http_method_names = ('get',)
     serializer_class = TagSerializer
     queryset = Tag.objects.all()
-    permission_classes = (AllowAny,)
     pagination_class = None
+
+
+####################################
+######## new code from here ########
+####################################
+
+class RecepiViewSet(viewsets.ModelViewSet):
+    http_method_names = ('get', 'post', 'patch', 'delete')
+    queryset = Recipe.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return RecipeRetrieveSerializer
+        if self.request.method == 'POST':
+            return RecipeCreateSerializer
+        return RecipeUpdateSerializer
