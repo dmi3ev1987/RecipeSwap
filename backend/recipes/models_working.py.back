@@ -18,7 +18,7 @@ class Tag(models.Model):
         return self.name
 
 
-class TagInRecipe(models.Model):
+class TagtInRecipe(models.Model):
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name=' Тег')
     recipe = models.ForeignKey(
         'Recipe',
@@ -88,14 +88,14 @@ class IngredientInRecipe(models.Model):
         verbose_name_plural = 'Ингредиенты в рецепте'
 
     def __str__(self):
-        return f'{self.amount_of_ingredient} {self.recipe}'
+        return self.ingredient
 
 
 class Recipe(models.Model):
     tags = models.ManyToManyField(
         Tag,
         verbose_name='Теги',
-        through=TagInRecipe,
+        through=TagtInRecipe,
     )
     author = models.ForeignKey(
         User,

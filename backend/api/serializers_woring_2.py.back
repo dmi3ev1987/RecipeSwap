@@ -8,7 +8,7 @@ from recipes.models import (
     IngredientInRecipe,
     Recipe,
     Tag,
-    TagInRecipe,
+    TagtInRecipe,
 )
 from rest_framework import serializers
 from rest_framework.exceptions import NotAuthenticated
@@ -105,9 +105,9 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
 
 
-#####################################
+####################################
 # ####### new code from here ########
-#####################################
+####################################
 
 
 class RecipeMetaSerializer(serializers.ModelSerializer):
@@ -127,11 +127,20 @@ class RecipeMetaSerializer(serializers.ModelSerializer):
         model = Recipe
 
 
+class RecipeRetrieveSerializer(RecipeMetaSerializer):
+    pass
+
+
 class TagsInRecipeSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=False,
     )
+    # name = serializers.CharField(read_only=True)
+    # slug = serializers.SlugRelatedField(
+    #     read_only=True,
+    #     slug_field='slug',
+    # )
 
     class Meta:
         model = Tag
@@ -139,20 +148,42 @@ class TagsInRecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ('name', 'slug')
 
 
-class IngredientInRecipeSerializer(serializers.ModelSerializer):
+class IngredientIDSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all(),
         many=False,
-        source='ingredient.id',
     )
-    name = serializers.ReadOnlyField(source='ingredient.name')
-    measurement_unit = serializers.ReadOnlyField(
-        source='ingredient.measurement_unit',
-    )
+    # id = serializers.SlugRelatedField(
+    #     queryset=Ingredient.objects.all(),
+    #     many=False,
+    #     slug_field='id',
+    # )
+
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')
+        read_only_fields = ('name', 'measurement_unit')
+
+
+class IngredientInRecipeSerializer(serializers.ModelSerializer):
+    # id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
+
+    id = IngredientIDSerializer(many=False, source='ingredient')
+    # name = serializers.StringRelatedField(source='id', read_only=True)
+    # name = serializers.CharField(read_only=True)
+    # measurement_unit = serializers.CharField(read_only=True)
+    # name = serializers.SlugRelatedField(
+    #     slug_field='name',
+    #     many=False,
+    #     read_only=True,
+    # )
+    # amount = serializers.IntegerField()
 
     class Meta:
         model = AmountOfIngredient
-        fields = ('id', 'name', 'measurement_unit', 'amount')
+        fields = ('id', 'amount')
+        # fields = ('id', 'name', 'amount')
+        # read_only_fields = ('name', 'measurement_unit')
 
 
 class RecipeCreateSerializer(RecipeMetaSerializer):
@@ -161,14 +192,41 @@ class RecipeCreateSerializer(RecipeMetaSerializer):
     ingredients = IngredientInRecipeSerializer(many=True, required=True)
     tags = TagsInRecipeSerializer(many=True)
 
-    def validate_ingredients(self, value):
-        if not value:
-            raise serializers.ValidationError
-        return value
+    # def validate(self, data):
+    #     # temp_dict = {"tags": [6, 7, 3]}
+    #     # tags = temp_dict.pop('tags')
+    #     # # print(tags)
+    #     # data_list = []
+
+    #     # for tag in tags:
+    #     #     data_list.append({"id": tag})
+    #     # temp_dict["tags"] = data_list
+
+    #     # print(temp_dict)
+    #     tags = data.pop('tags')
+    #     data_list = []
+    #     for tag in tags:
+    #         data_list.append({"pk": tag})
+    #     data['tags'] = data_list
+
+    #     return data
+
+    # for ingredient in ingredients:
+    #     id=ingredient.pop("id")
+    #     ingredient["id"] = {"id": id}
+    #     print(ingredient)
+    #     print(id)
 
     def to_internal_value(self, data):
         tags = data.pop('tags')
         data['tags'] = [{'id': tag} for tag in tags]
+        ingredients = data.pop('ingredients')
+        data_list = []
+        for ingredient in ingredients:
+            id = ingredient.pop('id')
+            ingredient['id'] = {'id': id}
+            data_list.append(ingredient)
+        data['ingredients'] = data_list
         return super().to_internal_value(data)
 
     def create(self, validated_data):
@@ -181,40 +239,33 @@ class RecipeCreateSerializer(RecipeMetaSerializer):
 
         for tag in tags:
             current_tag, status = Tag.objects.get_or_create(id=tag['id'].pk)
-            TagInRecipe.objects.create(
+            TagtInRecipe.objects.create(
                 tag=current_tag,
                 recipe=recipe,
             )
 
         for ingredient in ingredients:
+            # print(ingredient["id"])
+            # print(ingredient["id"]["id"])
+            # print(ingredient["id"]["id"].pk)
             current_ingredient, status = (
                 AmountOfIngredient.objects.get_or_create(
-                    ingredient=ingredient['ingredient']['id'],
-                    amount=ingredient['amount'],
+                    ingredient=ingredient["ingredient"]["id"],
+                    amount=ingredient["amount"],
                 )
             )
+            print("______________________________________________________")
+            print("id", current_ingredient.id)
+            print("amount", current_ingredient.amount)
+            print("ingredient", current_ingredient.ingredient)
+            print(current_ingredient)
+            print(current_ingredient)
+            # current_ingredient["id"] = current_ingredient.pk
             IngredientInRecipe.objects.create(
                 amount_of_ingredient=current_ingredient,
                 recipe=recipe,
             )
         return recipe
-
-
-class UserReadSerializer(UserSerializer):
-    class Meta(UserSerializer.Meta):
-        read_only_fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'is_subscribed',
-            'avatar',
-        )
-
-
-class RecipeRetrieveSerializer(RecipeCreateSerializer):
-    author = UserReadSerializer(read_only=True)
 
 
 class RecipeUpdateSerializer(RecipeCreateSerializer):
