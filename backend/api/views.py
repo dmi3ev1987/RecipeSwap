@@ -57,9 +57,11 @@ class TagViewSet(viewsets.ModelViewSet):
 ######## new code from here ########
 ####################################
 
+
 class RecepiViewSet(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch', 'delete')
-    queryset = Recipe.objects.all()
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('author', 'is_favorited', 'is_in_shopping_cart')
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -67,3 +69,10 @@ class RecepiViewSet(viewsets.ModelViewSet):
         if self.request.method == 'POST':
             return RecipeCreateSerializer
         return RecipeUpdateSerializer
+
+    def get_queryset(self):
+        queryset = Recipe.objects.all()
+        tags_slugs = self.request.query_params.getlist('tags')
+        if tags_slugs:
+            queryset = queryset.filter(tags__slug__in=tags_slugs).distinct()
+        return queryset

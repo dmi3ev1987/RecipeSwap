@@ -17,9 +17,7 @@ else:
 router_v1 = Router()
 router_v1.register(r'ingredients', IngredientViewSet)
 router_v1.register(r'tags', TagViewSet)
-######## new code from here ########
-router_v1.register(r'recipes', RecepiViewSet)
-######### end of new code ##########
+router_v1.register(r'recipes', RecepiViewSet, basename='recipe')
 
 urlpatterns = [
     path('', include(router_v1.urls)),
