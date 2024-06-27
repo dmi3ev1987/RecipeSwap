@@ -12,7 +12,7 @@ from recipes.models import (
     TagInRecipe,
 )
 from rest_framework import serializers
-from rest_framework.exceptions import NotAuthenticated
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.validators import UniqueValidator
 
 User = get_user_model()
@@ -170,15 +170,40 @@ class RecipeCreateSerializer(RecipeMetaSerializer):
     author = UserMeSerializer(read_only=True)
     image = Base64ImageField(required=True, allow_null=False)
     ingredients = IngredientInRecipeSerializer(many=True, required=True)
-    tags = TagsInRecipeSerializer(many=True)
+    tags = TagsInRecipeSerializer(many=True, required=True)
 
     def validate_ingredients(self, value):
         if not value:
-            raise serializers.ValidationError
+            error = (
+                'Ошибка ввода данных: поле ингредиентов не может быть пустым.'
+            )
+            raise serializers.ValidationError(error)
+        validated_value = []
+        for val in value:
+            if val in validated_value:
+                error = (
+                    'Ошибка ввода данных: '
+                    'ингредиенты не должны повторяться.'
+                )
+                raise serializers.ValidationError(error)
+            validated_value.append(val)
+        return value
+
+    def validate_tags(self, value):
+        if not value:
+            error = 'Ошибка ввода данных: поле тегов не может быть пустым.'
+            raise serializers.ValidationError(error)
+        validated_value = []
+        for val in value:
+            if val in validated_value:
+                error = ('Ошибка ввода данных: '
+                         'теги не должны повторяться.')
+                raise serializers.ValidationError(error)
+            validated_value.append(val)
         return value
 
     def to_internal_value(self, data):
-        tags = data.pop('tags')
+        tags = data.get('tags', [])
         data['tags'] = [{'id': tag} for tag in tags]
         return super().to_internal_value(data)
 
@@ -216,7 +241,6 @@ class RecipeRetrieveSerializer(RecipeCreateSerializer):
 
 
 class RecipeUpdateSerializer(RecipeCreateSerializer):
-
     def update(self, instance, validated_data):
         instance.image = validated_data.get('image', instance.image)
         instance.name = validated_data.get('name', instance.name)
@@ -224,7 +248,16 @@ class RecipeUpdateSerializer(RecipeCreateSerializer):
         instance.cooking_time = validated_data.get('cooking_time')
         instance.save()
 
-        ingredients = validated_data.pop('ingredients')
+        user = self.context.get('request').user
+        if user != instance.author:
+            raise PermissionDenied
+
+        ingredients = validated_data.get('ingredients', [])
+        if not ingredients:
+            error = (
+                'Ошибка ввода данных: поле ингредиентов не может быть пустым.'
+            )
+            raise serializers.ValidationError(error)
         tags = validated_data.pop('tags')
 
         recipe = get_object_or_404(Recipe, pk=instance.pk)
