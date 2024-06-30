@@ -116,11 +116,6 @@ class TagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-#####################################
-# ####### new code from here ########
-#####################################
-
-
 class RecipeMetaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
