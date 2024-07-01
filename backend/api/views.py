@@ -5,8 +5,8 @@ from django.urls import reverse
 from django.utils import baseconv
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import Ingredient, Recipe, Tag
-from rest_framework import filters, status, viewsets
+from recipes.models import Ingredient, Recipe, Subscriptions, Tag
+from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,6 +16,7 @@ from .serializers import (
     RecipeCreateSerializer,
     RecipeRetrieveSerializer,
     RecipeUpdateSerializer,
+    SubscriptionSerializer,
     TagSerializer,
     UserAvatarSerializer,
 )
@@ -110,25 +111,34 @@ class ShortLinkView(APIView):
 
 
 class UserViewSet(UserViewSet):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
     @action(
         methods=['post'],
         detail=True,
         url_path='subscribe',
         url_name='subscribe',
-        serializer_class=UserAvatarSerializer,
+        serializer_class=SubscriptionSerializer,
     )
-    def subscriptions(self, request, pk=None):
-        user = self.get_object()
-        data = {'user': user, 'author': request.user}
-        serializer = self.get_serializer(
-            data=data,
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
+    def subscribe(self, request, id=None):
+        subsciber = request.user
+        author = get_object_or_404(User, id=id)
+        data = {'subscriber': subsciber.id, 'author': author.id}
+        serializer = self.get_serializer(data=data)
+        if serializer.is_valid():
+            Subscriptions.objects.get_or_create(
+                subscriber=subsciber,
+                author=author,
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @subscribe.mapping.delete
+    def unsubscribe(self, request, id=None):
+        subsciber = request.user
+        author = get_object_or_404(User, id=id)
+        Subscriptions.objects.filter(
+            subscriber=subsciber,
+            author=author,
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

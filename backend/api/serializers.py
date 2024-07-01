@@ -8,6 +8,7 @@ from recipes.models import (
     Ingredient,
     IngredientInRecipe,
     Recipe,
+    Subscriptions,
     Tag,
     TagInRecipe,
 )
@@ -28,6 +29,8 @@ class Base64ImageField(serializers.ImageField):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    is_subscribed = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
@@ -39,6 +42,16 @@ class UserSerializer(serializers.ModelSerializer):
             'is_subscribed',
             'avatar',
         )
+
+    # new code
+    def get_is_subscribed(self, obj):
+        current_user = self.context.get('request').user
+        if current_user.is_authenticated:
+            return Subscriptions.objects.filter(
+                subscriber=current_user,
+                author=obj,
+            ).exists()
+        return False
 
 
 class UserAvatarSerializer(UserSerializer):
@@ -191,8 +204,7 @@ class RecipeCreateSerializer(RecipeMetaSerializer):
         validated_value = []
         for val in value:
             if val in validated_value:
-                error = ('Ошибка ввода данных: '
-                         'теги не должны повторяться.')
+                error = 'Ошибка ввода данных: теги не должны повторяться.'
                 raise serializers.ValidationError(error)
             validated_value.append(val)
         return value
@@ -283,3 +295,51 @@ class RecipeUpdateSerializer(RecipeCreateSerializer):
             )
 
         return instance
+
+
+# new code from here
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    email = serializers.ReadOnlyField(source='author.email')
+    id = serializers.ReadOnlyField(source='author.id')
+    username = serializers.ReadOnlyField(source='author.username')
+    first_name = serializers.ReadOnlyField(source='author.first_name')
+    last_name = serializers.ReadOnlyField(source='author.last_name')
+    avatar = serializers.ReadOnlyField(source='author.avatar')
+
+    def to_representation(self, subscription):
+        representation = super().to_representation(subscription)
+        avatar = representation.get('avatar', None)
+        representation['avatar'] = avatar.url if avatar else None
+        return representation
+
+
+    def validate(self, data):
+        if self.context['request'].user == data['author']:
+            error = 'Нельзя подписаться на самого себя'
+            raise serializers.ValidationError(error)
+        return data
+
+    class Meta:
+        model = Subscriptions
+        fields = (
+            'author',
+            'subscriber',
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'avatar',
+        )
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=Subscriptions.objects.all(),
+                fields=('author', 'subscriber'),
+                message='Вы уже подписаны на этого пользователя',
+            ),
+        ]
+        extra_kwargs = {
+            'author': {'write_only': True},
+            'subscriber': {'write_only': True},
+        }
