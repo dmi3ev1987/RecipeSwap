@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import baseconv
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from recipes.models import Ingredient, Recipe, Tag
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -102,4 +103,32 @@ class ShortLinkView(APIView):
         recipe = get_object_or_404(Recipe, pk=recipe_id)
         return HttpResponse(
             request.build_absolute_uri(f'../../api/recipes/{recipe.id}'),
+        )
+
+
+# new code from here
+
+
+class UserViewSet(UserViewSet):
+    @action(
+        methods=['post'],
+        detail=True,
+        url_path='subscribe',
+        url_name='subscribe',
+        serializer_class=UserAvatarSerializer,
+    )
+    def subscriptions(self, request, pk=None):
+        user = self.get_object()
+        data = {'user': user, 'author': request.user}
+        serializer = self.get_serializer(
+            data=data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
         )
