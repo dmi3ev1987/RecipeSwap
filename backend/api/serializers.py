@@ -8,6 +8,7 @@ from recipes.models import (
     Ingredient,
     IngredientInRecipe,
     Recipe,
+    ShoppingCart,
     Subscriptions,
     Tag,
     TagInRecipe,
@@ -404,3 +405,39 @@ class SubscriptionListSerializer(BaseSubscriptionSerializer):
             'avatar',
         )
         read_only_fields = ('author', 'subscriber')
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='recipe.id')
+    name = serializers.ReadOnlyField(source='recipe.name')
+    image = serializers.ReadOnlyField(source='recipe.image')
+    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+
+    def to_representation(self, subscription):
+        representation = super().to_representation(subscription)
+        image = representation.get('image', None)
+        representation['image'] = image.url if image else None
+        return representation
+
+    class Meta:
+        model = ShoppingCart
+        fields = (
+            'customer',
+            'recipe',
+            'id',
+            'name',
+            'image',
+            'cooking_time',
+        )
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=ShoppingCart.objects.all(),
+                fields=('customer', 'recipe'),
+                message='Рецепт уже добавлен в список покупок',
+            ),
+        ]
+        extra_kwargs = {
+            'customer': {'write_only': True},
+            'recipe': {'write_only': True},
+        }
+

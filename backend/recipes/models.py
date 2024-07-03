@@ -79,7 +79,7 @@ class IngredientInRecipe(models.Model):
     amount_of_ingredient = models.ForeignKey(
         AmountOfIngredient,
         on_delete=models.CASCADE,
-        verbose_name='Ингредиент',
+        verbose_name='Количество ингредиента в рецепте',
     )
 
     class Meta:
@@ -155,3 +155,31 @@ class Subscriptions(models.Model):
 
     def __str__(self):
         return f'{self.subscriber} подписан на {self.author}'
+
+
+class ShoppingCart(models.Model):
+    customer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Покупатель',
+        related_name='customers',
+    )
+    recipe = models.ForeignKey(
+        'Recipe',
+        on_delete=models.CASCADE,
+        verbose_name='Рецепт',
+    )
+
+    class Meta:
+        default_related_name = 'shopping_carts'
+        verbose_name = 'корзина'
+        verbose_name_plural = 'Корзины'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer', 'recipe'],
+                name='unique_customer_recipe',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.customer} хочет купить {self.recipe}'
