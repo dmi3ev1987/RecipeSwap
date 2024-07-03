@@ -128,9 +128,6 @@ class Recipe(models.Model):
         return self.name
 
 
-# new code
-
-
 class Subscriptions(models.Model):
     author = models.ForeignKey(
         User,
