@@ -43,14 +43,13 @@ class UserSerializer(serializers.ModelSerializer):
             'avatar',
         )
 
-    # new code
+    def validate_username(self, value):
+        if value == 'me':
+            error = 'Использовать имя "me" запрещено'
+            raise serializers.ValidationError(error)
+        return value
+
     def get_is_subscribed(self, obj):
-        current_user = self.context.get('request').user
-        if current_user.is_authenticated:
-            return Subscriptions.objects.filter(
-                subscriber=current_user,
-                author=obj,
-            ).exists()
         return False
 
 
@@ -297,15 +296,22 @@ class RecipeUpdateSerializer(RecipeCreateSerializer):
         return instance
 
 
-# new code from here
+class RecipeMiniFieldSerializer(RecipeMetaSerializer):
+    class Meta(RecipeMetaSerializer.Meta):
+        fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = ('id', 'name', 'image', 'cooking_time')
 
-class SubscriptionSerializer(serializers.ModelSerializer):
+
+class BaseSubscriptionSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source='author.email')
     id = serializers.ReadOnlyField(source='author.id')
     username = serializers.ReadOnlyField(source='author.username')
     first_name = serializers.ReadOnlyField(source='author.first_name')
     last_name = serializers.ReadOnlyField(source='author.last_name')
     avatar = serializers.ReadOnlyField(source='author.avatar')
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
 
     def to_representation(self, subscription):
         representation = super().to_representation(subscription)
@@ -313,15 +319,51 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         representation['avatar'] = avatar.url if avatar else None
         return representation
 
+    def get_is_subscribed(self, obj):
+        author = self.get_author(obj)
+        subscriber = self.context.get('request').user
+        if subscriber.is_authenticated:
+            return Subscriptions.objects.filter(
+                subscriber=subscriber.id,
+                author=author.id,
+            ).exists()
+        return False
 
+    def get_recipes(self, obj):
+        author = self.get_author(obj)
+        queryset = Recipe.objects.filter(author=author.id)
+        recipes_limit = self.context['request'].query_params.get(
+            'recipes_limit',
+        )
+        if recipes_limit:
+            queryset = queryset[: int(recipes_limit)]
+        serializer = RecipeMiniFieldSerializer(queryset, many=True)
+        return serializer.data
+
+    def get_recipes_count(self, obj):
+        author = self.get_author(obj)
+        return Recipe.objects.filter(author=author.id).count()
+
+    def get_author(self, obj):
+        try:
+            author = obj.get('author')
+        except AttributeError:
+            author = obj.author
+        return author
+
+    class Meta:
+        model = Subscriptions
+        fields = '__all__'
+
+
+class SubscriptionCreateSerializer(BaseSubscriptionSerializer):
     def validate(self, data):
-        if self.context['request'].user == data['author']:
+        if self.context.get('request').user == data.get('author'):
             error = 'Нельзя подписаться на самого себя'
             raise serializers.ValidationError(error)
         return data
 
-    class Meta:
-        model = Subscriptions
+    class Meta(BaseSubscriptionSerializer.Meta):
         fields = (
             'author',
             'subscriber',
@@ -330,6 +372,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'username',
             'first_name',
             'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
             'avatar',
         )
         validators = [
@@ -343,3 +388,19 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'author': {'write_only': True},
             'subscriber': {'write_only': True},
         }
+
+
+class SubscriptionListSerializer(BaseSubscriptionSerializer):
+    class Meta(BaseSubscriptionSerializer.Meta):
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
+            'avatar',
+        )
+        read_only_fields = ('author', 'subscriber')

@@ -16,7 +16,8 @@ from .serializers import (
     RecipeCreateSerializer,
     RecipeRetrieveSerializer,
     RecipeUpdateSerializer,
-    SubscriptionSerializer,
+    SubscriptionCreateSerializer,
+    SubscriptionListSerializer,
     TagSerializer,
     UserAvatarSerializer,
 )
@@ -107,9 +108,6 @@ class ShortLinkView(APIView):
         )
 
 
-# new code from here
-
-
 class UserViewSet(UserViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -118,7 +116,7 @@ class UserViewSet(UserViewSet):
         detail=True,
         url_path='subscribe',
         url_name='subscribe',
-        serializer_class=SubscriptionSerializer,
+        serializer_class=SubscriptionCreateSerializer,
     )
     def subscribe(self, request, id=None):
         subsciber = request.user
@@ -142,3 +140,17 @@ class UserViewSet(UserViewSet):
             author=author,
         ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        methods=['get'],
+        detail=False,
+        url_path='subscriptions',
+        url_name='subscriptions',
+        serializer_class=SubscriptionListSerializer,
+    )
+    def subscriptions(self, request):
+        pagintated_queryset = self.paginate_queryset(
+            Subscriptions.objects.filter(subscriber=request.user),
+        )
+        serializer = self.get_serializer(pagintated_queryset, many=True)
+        return self.get_paginated_response(serializer.data)
