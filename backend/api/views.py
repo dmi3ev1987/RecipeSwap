@@ -21,6 +21,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .filter import RecipeFilterBackend
 from .permissions import IsAuthorOrReadOnlyPermission
 from .serializers import (
     FavoriteSerializer,
@@ -75,8 +76,9 @@ class TagViewSet(viewsets.ModelViewSet):
 
 class RecepiViewSet(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch', 'delete')
-    filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('author', 'is_favorited', 'is_in_shopping_cart')
+    queryset = Recipe.objects.all()
+    filter_backends = (DjangoFilterBackend, RecipeFilterBackend)
+    filterset_fields = ('author',)
     permission_classes = (IsAuthorOrReadOnlyPermission,)
 
     def get_serializer_class(self):
@@ -85,13 +87,6 @@ class RecepiViewSet(viewsets.ModelViewSet):
         if self.request.method == 'POST':
             return RecipeCreateSerializer
         return RecipeUpdateSerializer
-
-    def get_queryset(self):
-        queryset = Recipe.objects.all()
-        tags_slugs = self.request.query_params.getlist('tags')
-        if tags_slugs:
-            queryset = queryset.filter(tags__slug__in=tags_slugs).distinct()
-        return queryset
 
     @action(
         methods=['get'],

@@ -33,6 +33,9 @@ class Base64ImageField(serializers.ImageField):
 class UserSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
+    def get_is_subscribed(self, obj):
+        return False
+
     class Meta:
         model = User
         fields = (
@@ -50,9 +53,6 @@ class UserSerializer(serializers.ModelSerializer):
             error = 'Использовать имя "me" запрещено'
             raise serializers.ValidationError(error)
         return value
-
-    def get_is_subscribed(self, obj):
-        return False
 
 
 class UserAvatarSerializer(UserSerializer):
@@ -130,23 +130,6 @@ class TagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class RecipeMetaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Recipe
-        fields = (
-            'id',
-            'tags',
-            'author',
-            'ingredients',
-            'is_favorited',
-            'is_in_shopping_cart',
-            'name',
-            'image',
-            'text',
-            'cooking_time',
-        )
-
-
 class TagsInRecipeSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
@@ -175,11 +158,19 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class RecipeCreateSerializer(RecipeMetaSerializer):
+class RecipeCreateSerializer(serializers.ModelSerializer):
     author = UserMeSerializer(read_only=True)
     image = Base64ImageField(required=True, allow_null=False)
     ingredients = IngredientInRecipeSerializer(many=True, required=True)
     tags = TagsInRecipeSerializer(many=True, required=True)
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
+
+    def get_is_favorited(self, obj):
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        return False
 
     def validate_ingredients(self, value):
         if not value:
@@ -243,9 +234,42 @@ class RecipeCreateSerializer(RecipeMetaSerializer):
 
         return recipe
 
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
+        )
+
 
 class RecipeRetrieveSerializer(RecipeCreateSerializer):
     author = UserReadSerializer(read_only=True)
+
+    def get_is_favorited(self, obj):
+        customer = self.context.get('request').user
+        if customer.is_authenticated:
+            return Favorite.objects.filter(
+                customer=customer,
+                recipe=obj,
+            ).exists()
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        customer = self.context.get('request').user
+        if customer.is_authenticated:
+            return ShoppingCart.objects.filter(
+                customer=customer,
+                recipe=obj,
+            ).exists()
+        return False
 
 
 class RecipeUpdateSerializer(RecipeCreateSerializer):
@@ -298,8 +322,9 @@ class RecipeUpdateSerializer(RecipeCreateSerializer):
         return instance
 
 
-class RecipeMiniFieldSerializer(RecipeMetaSerializer):
-    class Meta(RecipeMetaSerializer.Meta):
+class RecipeMiniFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
         read_only_fields = ('id', 'name', 'image', 'cooking_time')
 
