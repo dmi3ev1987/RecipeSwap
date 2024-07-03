@@ -7,6 +7,7 @@ from .views import (
     RecepiViewSet,
     TagViewSet,
     UserMeAvatarAPIView,
+    UserViewSet,
 )
 
 if settings.DEBUG:
@@ -18,10 +19,10 @@ router_v1 = Router()
 router_v1.register(r'ingredients', IngredientViewSet)
 router_v1.register(r'tags', TagViewSet)
 router_v1.register(r'recipes', RecepiViewSet, basename='recipe')
+router_v1.register(r'users', UserViewSet)
 
 urlpatterns = [
     path('', include(router_v1.urls)),
-    path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
     path(
         'users/me/avatar/',

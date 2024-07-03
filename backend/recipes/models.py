@@ -128,19 +128,30 @@ class Recipe(models.Model):
         return self.name
 
 
-# Subscribtions
-class UserWithRecipes(models.Model):
+class Subscriptions(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         verbose_name='Автор',
+        related_name='authors',
     )
-    recipe = models.ManyToManyField(Recipe, verbose_name='Рецепт')
+    subscriber = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Подписчик',
+        related_name='subscribers',
+    )
 
     class Meta:
-        default_related_name = 'subscribtions'
+        default_related_name = 'subscriptions'
         verbose_name = 'подписка'
         verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author', 'subscriber'],
+                name='unique_author_subscriber',
+            ),
+        ]
 
     def __str__(self):
-        return self.author
+        return f'{self.subscriber} подписан на {self.author}'
