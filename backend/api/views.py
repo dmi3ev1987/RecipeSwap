@@ -1,21 +1,26 @@
+import csv
+
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import baseconv
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import Ingredient, Recipe, Subscriptions, Tag
+from recipes.models import Ingredient, Recipe, ShoppingCart, Subscriptions, Tag
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .permissions import IsAuthorOrReadOnlyPermission
 from .serializers import (
     IngredientSerializer,
     RecipeCreateSerializer,
     RecipeRetrieveSerializer,
     RecipeUpdateSerializer,
+    ShoppingCartSerializer,
     SubscriptionCreateSerializer,
     SubscriptionListSerializer,
     TagSerializer,
@@ -64,6 +69,7 @@ class RecepiViewSet(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch', 'delete')
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('author', 'is_favorited', 'is_in_shopping_cart')
+    permission_classes = (IsAuthorOrReadOnlyPermission,)
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -92,6 +98,77 @@ class RecepiViewSet(viewsets.ModelViewSet):
             reverse('shortlink', kwargs={'encoded_id': encoded_link}),
         )
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
+
+    @action(
+        methods=['post'],
+        detail=True,
+        url_path='shopping_cart',
+        url_name='shopping_cart',
+    )
+    def shopping_cart(self, request, pk=None):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        data = {'customer': customer.id, 'recipe': recipe.id}
+        serialazer = ShoppingCartSerializer(data=data)
+        if serialazer.is_valid():
+            ShoppingCart.objects.create(
+                customer=customer,
+                recipe=recipe,
+            )
+            return Response(serialazer.data, status=status.HTTP_201_CREATED)
+        return Response(serialazer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        shopping_cart = ShoppingCart.objects.filter(
+            customer=customer,
+            recipe=recipe,
+        )
+        if shopping_cart.exists():
+            shopping_cart.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+    @action(
+        methods=['get'],
+        detail=False,
+        url_path='download_shopping_cart',
+        url_name='download_shopping_cart',
+    )
+    def download_shopping_cart(self, request):
+        customer = request.user
+        ingredients = (
+            ShoppingCart.objects.filter(customer=customer)
+            .values(
+                'recipe__ingredients__ingredient__name',
+                'recipe__ingredients__ingredient__measurement_unit',
+            )
+            .annotate(amount=Sum('recipe__ingredients__amount'))
+            .order_by('recipe__ingredients__ingredient__name')
+        )
+
+        csv_response = HttpResponse(content_type='text/csv')
+        csv_response['Content-Disposition'] = (
+            'attachment; filename="shopping_cart.csv"'
+        )
+
+        writer = csv.writer(csv_response)
+        writer.writerow(['Название', 'Количество', 'Единицы измерения'])
+        for ingredient in ingredients:
+            writer.writerow(
+                [
+                    ingredient['recipe__ingredients__ingredient__name'],
+                    ingredient['amount'],
+                    ingredient[
+                        'recipe__ingredients__ingredient__measurement_unit'
+                    ],
+                ],
+            )
+
+        return csv_response
 
 
 class ShortLinkView(APIView):
@@ -135,11 +212,14 @@ class UserViewSet(UserViewSet):
     def unsubscribe(self, request, id=None):
         subsciber = request.user
         author = get_object_or_404(User, id=id)
-        Subscriptions.objects.filter(
+        subsciption = Subscriptions.objects.filter(
             subscriber=subsciber,
             author=author,
-        ).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        )
+        if subsciption.exists():
+            subsciption.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         methods=['get'],
