@@ -8,7 +8,14 @@ from django.urls import reverse
 from django.utils import baseconv
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import Ingredient, Recipe, ShoppingCart, Subscriptions, Tag
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    ShoppingCart,
+    Subscriptions,
+    Tag,
+)
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,6 +23,7 @@ from rest_framework.views import APIView
 
 from .permissions import IsAuthorOrReadOnlyPermission
 from .serializers import (
+    FavoriteSerializer,
     IngredientSerializer,
     RecipeCreateSerializer,
     RecipeRetrieveSerializer,
@@ -131,7 +139,6 @@ class RecepiViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
-
     @action(
         methods=['get'],
         detail=False,
@@ -169,6 +176,38 @@ class RecepiViewSet(viewsets.ModelViewSet):
             )
 
         return csv_response
+
+    @action(
+        methods=['post'],
+        detail=True,
+        url_path='favorite',
+        url_name='favorite',
+    )
+    def favorite(self, request, pk=None):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        data = {'customer': customer.id, 'recipe': recipe.id}
+        serialazer = FavoriteSerializer(data=data)
+        if serialazer.is_valid():
+            Favorite.objects.create(
+                customer=customer,
+                recipe=recipe,
+            )
+            return Response(serialazer.data, status=status.HTTP_201_CREATED)
+        return Response(serialazer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @favorite.mapping.delete
+    def delete_favorite(self, request, pk=None):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        favorite = Favorite.objects.filter(
+            customer=customer,
+            recipe=recipe,
+        )
+        if favorite.exists():
+            favorite.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class ShortLinkView(APIView):
