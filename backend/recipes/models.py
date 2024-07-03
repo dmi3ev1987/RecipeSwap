@@ -157,19 +157,26 @@ class Subscriptions(models.Model):
         return f'{self.subscriber} подписан на {self.author}'
 
 
-class ShoppingCart(models.Model):
+class ShoppingCartFavoriteBaseModel(models.Model):
     customer = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         verbose_name='Покупатель',
-        related_name='customers',
     )
     recipe = models.ForeignKey(
-        'Recipe',
+        Recipe,
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
     )
 
+    class Meta:
+        abstract = True
+
+    def __str__(self):
+        return f'{self.customer} добавил {self.recipe}'
+
+
+class ShoppingCart(ShoppingCartFavoriteBaseModel):
     class Meta:
         default_related_name = 'shopping_carts'
         verbose_name = 'корзина'
@@ -177,9 +184,19 @@ class ShoppingCart(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['customer', 'recipe'],
-                name='unique_customer_recipe',
+                name='unique_customer_recipe_in_shopping_cart',
             ),
         ]
 
-    def __str__(self):
-        return f'{self.customer} хочет купить {self.recipe}'
+
+class Favorite(ShoppingCartFavoriteBaseModel):
+    class Meta:
+        default_related_name = 'favorites'
+        verbose_name = 'избранное'
+        verbose_name_plural = 'Избранное'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer', 'recipe'],
+                name='unique_customer_recipe_in_favorite',
+            ),
+        ]

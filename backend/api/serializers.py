@@ -5,6 +5,7 @@ from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from recipes.models import (
     AmountOfIngredient,
+    Favorite,
     Ingredient,
     IngredientInRecipe,
     Recipe,
@@ -441,3 +442,14 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
             'recipe': {'write_only': True},
         }
 
+
+class FavoriteSerializer(ShoppingCartSerializer):
+    class Meta(ShoppingCartSerializer.Meta):
+        model = Favorite
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=Favorite.objects.all(),
+                fields=('customer', 'recipe'),
+                message='Рецепт уже добавлен в избранное',
+            ),
+        ]
