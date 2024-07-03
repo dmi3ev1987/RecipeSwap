@@ -107,8 +107,6 @@ class Recipe(models.Model):
         verbose_name='Ингредиенты в рецепте',
         through=IngredientInRecipe,
     )
-    is_favorited = models.BooleanField('Избранное', default=False)
-    is_in_shopping_cart = models.BooleanField('Корзина', default=False)
     name = models.CharField('Название', max_length=256)
     image = models.ImageField()
     text = models.TextField('Рецепт')
