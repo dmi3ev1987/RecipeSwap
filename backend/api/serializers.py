@@ -3,6 +3,10 @@ import base64
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
+from rest_framework import serializers
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from rest_framework.validators import UniqueValidator
+
 from recipes.models import (
     AmountOfIngredient,
     Favorite,
@@ -14,9 +18,6 @@ from recipes.models import (
     Tag,
     TagInRecipe,
 )
-from rest_framework import serializers
-from rest_framework.exceptions import NotAuthenticated, PermissionDenied
-from rest_framework.validators import UniqueValidator
 
 User = get_user_model()
 
