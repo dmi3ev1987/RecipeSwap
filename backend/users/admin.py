@@ -6,7 +6,5 @@ from .models import CustomUser
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    model = CustomUser
-    UserAdmin.fieldsets += (
-        ('Extra Fields', {'fields': ('is_subscribed', 'avatar')}),
-    )
+    list_display = ('username', 'email', 'first_name', 'last_name')
+    search_fields = ('username', 'email')

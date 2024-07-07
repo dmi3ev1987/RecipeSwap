@@ -1,0 +1,48 @@
+version: '3.3'
+
+volumes:
+  pg_data:
+  static:
+  media:
+
+services:
+  db:
+    container_name: foodgram-database
+    image: postgres:13
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+      interval: 5s
+      timeout: 10s
+      retries: 5
+  backend:
+    container_name: foodgram-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    image: dmi3ev1987/foodgram_backend
+    env_file: .env
+    volumes:
+      - static:/backend_static
+      - media:/var/www/foodgram/media
+  frontend:
+    container_name: foodgram-front
+    image: dmi3ev1987/foodgram_frontend
+    env_file: .env
+    command: cp -r /app/build/. /frontend_static/
+    volumes:
+      - static:/frontend_static
+  nginx:
+    container_name: foodgram-nginx
+    depends_on:
+      - backend
+    image: dmi3ev1987/foodgram_nginx
+    env_file: .env
+    ports:
+      - 7000:80
+    volumes:
+      - static:/static
+      - media:/var/www/foodgram/media
+      - ./docs/:/usr/share/nginx/html/api/docs/

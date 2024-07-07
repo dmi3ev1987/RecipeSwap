@@ -2,7 +2,7 @@ import csv
 
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import baseconv
@@ -21,7 +21,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .filter import RecipeFilterBackend
+from .filter import IngredientNameFilter, RecipeFilterBackend
 from .permissions import IsAuthorOrReadOnlyPermission
 from .serializers import (
     FavoriteSerializer,
@@ -62,7 +62,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()
     filter_backends = (DjangoFilterBackend, filters.SearchFilter)
-    filterset_fields = ('name',)
+    filterset_class = IngredientNameFilter
     search_fields = ('^name',)
     pagination_class = None
 
@@ -214,8 +214,8 @@ class ShortLinkView(APIView):
             )
         recipe_id = baseconv.base64.decode(encoded_id)
         recipe = get_object_or_404(Recipe, pk=recipe_id)
-        return HttpResponse(
-            request.build_absolute_uri(f'../../api/recipes/{recipe.id}'),
+        return HttpResponseRedirect(
+            request.build_absolute_uri(f'../../recipes/{recipe.id}'),
         )
 
 
