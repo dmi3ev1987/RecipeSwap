@@ -77,9 +77,15 @@ class TagViewSet(viewsets.ModelViewSet):
 class RecepiViewSet(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch', 'delete')
     queryset = Recipe.objects.all()
-    filter_backends = (DjangoFilterBackend, RecipeFilterBackend)
+    filter_backends = (
+        DjangoFilterBackend,
+        RecipeFilterBackend,
+        filters.OrderingFilter,
+    )
     filterset_fields = ('author',)
     permission_classes = (IsAuthorOrReadOnlyPermission,)
+    ordering_fields = ('id',)
+    ordering = ('-id',)
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
