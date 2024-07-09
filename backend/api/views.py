@@ -18,7 +18,7 @@ from recipes.models import (
     Ingredient,
     Recipe,
     ShoppingCart,
-    Subscriptions,
+    Subscription,
     Tag,
 )
 from .filter import IngredientNameFilter, RecipeFilterBackend
@@ -241,7 +241,7 @@ class UserViewSet(UserViewSet):
         data = {'subscriber': subsciber.id, 'author': author.id}
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
-            Subscriptions.objects.get_or_create(
+            Subscription.objects.get_or_create(
                 subscriber=subsciber,
                 author=author,
             )
@@ -252,7 +252,7 @@ class UserViewSet(UserViewSet):
     def unsubscribe(self, request, id=None):
         subsciber = request.user
         author = get_object_or_404(User, id=id)
-        subsciption = Subscriptions.objects.filter(
+        subsciption = Subscription.objects.filter(
             subscriber=subsciber,
             author=author,
         )
@@ -270,7 +270,7 @@ class UserViewSet(UserViewSet):
     )
     def subscriptions(self, request):
         pagintated_queryset = self.paginate_queryset(
-            Subscriptions.objects.filter(subscriber=request.user),
+            Subscription.objects.filter(subscriber=request.user),
         )
         serializer = self.get_serializer(pagintated_queryset, many=True)
         return self.get_paginated_response(serializer.data)

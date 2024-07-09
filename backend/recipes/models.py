@@ -30,6 +30,12 @@ class TagInRecipe(models.Model):
         default_related_name = 'tags_in_recipe'
         verbose_name = 'тег в рецепте'
         verbose_name_plural = 'Теги в рецепте'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tag', 'recipe'],
+                name='unique_tag_in_recipe',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.tag} {self.recipe}'
@@ -126,7 +132,7 @@ class Recipe(models.Model):
         return self.name
 
 
-class Subscriptions(models.Model):
+class Subscription(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

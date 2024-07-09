@@ -14,7 +14,7 @@ from recipes.models import (
     IngredientInRecipe,
     Recipe,
     ShoppingCart,
-    Subscriptions,
+    Subscription,
     Tag,
     TagInRecipe,
 )
@@ -351,7 +351,7 @@ class BaseSubscriptionSerializer(serializers.ModelSerializer):
         author = self.get_author(obj)
         subscriber = self.context.get('request').user
         if subscriber.is_authenticated:
-            return Subscriptions.objects.filter(
+            return Subscription.objects.filter(
                 subscriber=subscriber.id,
                 author=author.id,
             ).exists()
@@ -380,7 +380,7 @@ class BaseSubscriptionSerializer(serializers.ModelSerializer):
         return author
 
     class Meta:
-        model = Subscriptions
+        model = Subscription
         fields = '__all__'
 
 
@@ -407,7 +407,7 @@ class SubscriptionCreateSerializer(BaseSubscriptionSerializer):
         )
         validators = [
             serializers.UniqueTogetherValidator(
-                queryset=Subscriptions.objects.all(),
+                queryset=Subscription.objects.all(),
                 fields=('author', 'subscriber'),
                 message='Вы уже подписаны на этого пользователя',
             ),
