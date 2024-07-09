@@ -8,10 +8,9 @@ from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.validators import UniqueValidator
 
 from recipes.models import (
-    AmountOfIngredient,
+    AmountOfIngredientInRecipe,
     Favorite,
     Ingredient,
-    IngredientInRecipe,
     Recipe,
     ShoppingCart,
     Subscription,
@@ -143,26 +142,37 @@ class TagsInRecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ('name', 'slug')
 
 
-class IngredientInRecipeSerializer(serializers.ModelSerializer):
+class AmountOfIngredientInRecipeSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all(),
         many=False,
-        source='ingredient.id',
     )
+
+    class Meta:
+        model = AmountOfIngredientInRecipe
+        fields = ('id', 'amount')
+
+
+class IngredientInRecipeSerializer(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(
         source='ingredient.measurement_unit',
     )
 
     class Meta:
-        model = AmountOfIngredient
+        model = AmountOfIngredientInRecipe
         fields = ('id', 'name', 'measurement_unit', 'amount')
+        read_only_fields = ('amount',)
 
 
 class RecipeCreateSerializer(serializers.ModelSerializer):
     author = UserMeSerializer(read_only=True)
     image = Base64ImageField(required=True, allow_null=False)
-    ingredients = IngredientInRecipeSerializer(many=True, required=True)
+    ingredients = AmountOfIngredientInRecipeSerializer(
+        many=True,
+        write_only=True,
+    )
     tags = TagsInRecipeSerializer(many=True, required=True)
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
@@ -222,18 +232,24 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             )
 
         for ingredient in ingredients:
-            current_ingredient, status = (
-                AmountOfIngredient.objects.get_or_create(
-                    ingredient=ingredient['ingredient']['id'],
-                    amount=ingredient['amount'],
-                )
+            current_ingredient, status = Ingredient.objects.get_or_create(
+                id=ingredient['id'].pk,
             )
-            IngredientInRecipe.objects.create(
-                amount_of_ingredient=current_ingredient,
+            AmountOfIngredientInRecipe.objects.create(
+                ingredient=current_ingredient,
+                amount=ingredient['amount'],
                 recipe=recipe,
             )
 
         return recipe
+
+    def to_representation(self, instance):
+        recipe_data = super().to_representation(instance)
+        recipe_data['ingredients'] = IngredientInRecipeSerializer(
+            instance.amount_of_ingredient.all(),
+            many=True,
+        ).data
+        return recipe_data
 
     class Meta:
         model = Recipe
@@ -309,14 +325,12 @@ class RecipeUpdateSerializer(RecipeCreateSerializer):
             instance.ingredients.remove(ingredient)
 
         for ingredient in ingredients:
-            current_ingredient, status = (
-                AmountOfIngredient.objects.get_or_create(
-                    ingredient=ingredient['ingredient']['id'],
-                    amount=ingredient['amount'],
-                )
+            current_ingredient, status = Ingredient.objects.get_or_create(
+                id=ingredient['id'].pk,
             )
-            IngredientInRecipe.objects.update_or_create(
-                amount_of_ingredient=current_ingredient,
+            AmountOfIngredientInRecipe.objects.update_or_create(
+                ingredient=current_ingredient,
+                amount=ingredient['amount'],
                 recipe=recipe,
             )
 

@@ -151,11 +151,15 @@ class RecepiViewSet(viewsets.ModelViewSet):
         ingredients = (
             ShoppingCart.objects.filter(customer=customer)
             .values(
-                'recipe__ingredients__ingredient__name',
-                'recipe__ingredients__ingredient__measurement_unit',
+                'recipe__ingredients__name',
+                'recipe__ingredients__measurement_unit',
             )
-            .annotate(amount=Sum('recipe__ingredients__amount'))
-            .order_by('recipe__ingredients__ingredient__name')
+            .annotate(
+                amount=Sum(
+                    'recipe__ingredients__amount_of_ingredient__amount',
+                ),
+            )
+            .order_by('recipe__ingredients__name')
         )
 
         csv_response = HttpResponse(content_type='text/csv')
@@ -168,11 +172,9 @@ class RecepiViewSet(viewsets.ModelViewSet):
         for ingredient in ingredients:
             writer.writerow(
                 [
-                    ingredient['recipe__ingredients__ingredient__name'],
+                    ingredient['recipe__ingredients__name'],
                     ingredient['amount'],
-                    ingredient[
-                        'recipe__ingredients__ingredient__measurement_unit'
-                    ],
+                    ingredient['recipe__ingredients__measurement_unit'],
                 ],
             )
 
