@@ -2,8 +2,8 @@ import csv
 
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import baseconv
 from django_filters.rest_framework import DjangoFilterBackend
@@ -26,9 +26,8 @@ from .permissions import IsAuthorOrReadOnlyPermission
 from .serializers import (
     FavoriteSerializer,
     IngredientSerializer,
-    RecipeCreateSerializer,
+    RecipeCreateUpdateSerializer,
     RecipeRetrieveSerializer,
-    RecipeUpdateSerializer,
     ShoppingCartSerializer,
     SubscriptionCreateSerializer,
     SubscriptionListSerializer,
@@ -41,15 +40,13 @@ User = get_user_model()
 
 class UserMeAvatarAPIView(APIView):
     def put(self, request):
-        user = get_object_or_404(User, username=request.user)
-        serializer = UserAvatarSerializer(user, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = UserAvatarSerializer(request.user, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        user = get_object_or_404(User, username=request.user)
+        user = request.user
         if user:
             user.avatar = None
             user.save()
@@ -88,11 +85,60 @@ class RecepiViewSet(viewsets.ModelViewSet):
     ordering = ('-id',)
 
     def get_serializer_class(self):
+        if self.action == 'shopping_cart':
+            return ShoppingCartSerializer
+        if self.action == 'favorite':
+            return FavoriteSerializer
         if self.request.method == 'GET':
             return RecipeRetrieveSerializer
-        if self.request.method == 'POST':
-            return RecipeCreateSerializer
-        return RecipeUpdateSerializer
+        return RecipeCreateUpdateSerializer
+
+    def get_response_for_create(self, request, pk):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        data = {'customer': customer.id, 'recipe': recipe.id}
+        serialazer = self.get_serializer(data=data)
+        serialazer.is_valid(raise_exception=True)
+        serialazer.save()
+        return Response(serialazer.data, status=status.HTTP_201_CREATED)
+
+    def get_response_for_delete(self, request, pk, model):
+        customer = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+        obj = model.objects.filter(
+            customer=customer,
+            recipe=recipe,
+        )
+        if obj.exists():
+            obj.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        methods=['post'],
+        detail=True,
+        url_path='shopping_cart',
+        url_name='shopping_cart',
+    )
+    def shopping_cart(self, request, pk=None):
+        return self.get_response_for_create(request, pk)
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        return self.get_response_for_delete(request, pk, ShoppingCart)
+
+    @action(
+        methods=['post'],
+        detail=True,
+        url_path='favorite',
+        url_name='favorite',
+    )
+    def favorite(self, request, pk=None):
+        return self.get_response_for_create(request, pk)
+
+    @favorite.mapping.delete
+    def delete_favorite(self, request, pk=None):
+        return self.get_response_for_delete(request, pk, Favorite)
 
     @action(
         methods=['get'],
@@ -107,38 +153,6 @@ class RecepiViewSet(viewsets.ModelViewSet):
             reverse('shortlink', kwargs={'encoded_id': encoded_link}),
         )
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
-
-    @action(
-        methods=['post'],
-        detail=True,
-        url_path='shopping_cart',
-        url_name='shopping_cart',
-    )
-    def shopping_cart(self, request, pk=None):
-        customer = request.user
-        recipe = get_object_or_404(Recipe, pk=pk)
-        data = {'customer': customer.id, 'recipe': recipe.id}
-        serialazer = ShoppingCartSerializer(data=data)
-        if serialazer.is_valid():
-            ShoppingCart.objects.create(
-                customer=customer,
-                recipe=recipe,
-            )
-            return Response(serialazer.data, status=status.HTTP_201_CREATED)
-        return Response(serialazer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @shopping_cart.mapping.delete
-    def delete_shopping_cart(self, request, pk=None):
-        customer = request.user
-        recipe = get_object_or_404(Recipe, pk=pk)
-        shopping_cart = ShoppingCart.objects.filter(
-            customer=customer,
-            recipe=recipe,
-        )
-        if shopping_cart.exists():
-            shopping_cart.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         methods=['get'],
@@ -180,55 +194,23 @@ class RecepiViewSet(viewsets.ModelViewSet):
 
         return csv_response
 
-    @action(
-        methods=['post'],
-        detail=True,
-        url_path='favorite',
-        url_name='favorite',
-    )
-    def favorite(self, request, pk=None):
-        customer = request.user
-        recipe = get_object_or_404(Recipe, pk=pk)
-        data = {'customer': customer.id, 'recipe': recipe.id}
-        serialazer = FavoriteSerializer(data=data)
-        if serialazer.is_valid():
-            Favorite.objects.create(
-                customer=customer,
-                recipe=recipe,
-            )
-            return Response(serialazer.data, status=status.HTTP_201_CREATED)
-        return Response(serialazer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @favorite.mapping.delete
-    def delete_favorite(self, request, pk=None):
-        customer = request.user
-        recipe = get_object_or_404(Recipe, pk=pk)
-        favorite = Favorite.objects.filter(
-            customer=customer,
-            recipe=recipe,
-        )
-        if favorite.exists():
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
-
 
 class ShortLinkView(APIView):
     def get(self, request, encoded_id):
         if not set(encoded_id).issubset(set(baseconv.BASE64_ALPHABET)):
-            return Response(
-                {'error': 'Link is not valid.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         recipe_id = baseconv.base64.decode(encoded_id)
         recipe = get_object_or_404(Recipe, pk=recipe_id)
-        return HttpResponseRedirect(
-            request.build_absolute_uri(f'../../recipes/{recipe.id}'),
-        )
+        return redirect('recipe-detail', pk=recipe.id)
 
 
 class UserViewSet(UserViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action == 'me':
+            return [permissions.IsAuthenticated()]
+        return super().get_permissions()
 
     @action(
         methods=['post'],
@@ -242,13 +224,9 @@ class UserViewSet(UserViewSet):
         author = get_object_or_404(User, id=id)
         data = {'subscriber': subsciber.id, 'author': author.id}
         serializer = self.get_serializer(data=data)
-        if serializer.is_valid():
-            Subscription.objects.get_or_create(
-                subscriber=subsciber,
-                author=author,
-            )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def unsubscribe(self, request, id=None):

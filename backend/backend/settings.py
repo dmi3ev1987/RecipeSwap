@@ -146,7 +146,17 @@ DJOSER = {
     },
     'SERIALIZERS': {
         'user_create': 'api.serializers.CreateUserSerializer',
-        'current_user': 'api.serializers.UserMeSerializer',
+        'current_user': 'api.serializers.UserReadSerializer',
         'user': 'api.serializers.UserSerializer',
     },
+}
+
+ERROR_MESSAGES = {
+    'me': 'Использовать имя "me" запрещено',
+    'empty_ingredients': 'Ошибка ввода данных: поле ингредиентов не может быть пустым.',
+    'empty_tags': 'Ошибка ввода данных: поле тегов не может быть пустым.',
+    'repeat_ingredients': 'Ошибка ввода данных: ингредиенты не должны повторяться.',
+    'repeat_tags': 'Ошибка ввода данных: теги не должны повторяться.',
+    'subscribe_self': 'Нельзя подписаться на самого себя',
+    'no_ingredients': 'Ошибка ввода данных: поле ингредиентов обязательно для заполнения.',
 }
