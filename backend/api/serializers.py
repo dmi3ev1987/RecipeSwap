@@ -255,7 +255,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class RecipeRetrieveSerializer(RecipeCreateUpdateSerializer):
-    author = UserReadSerializer(read_only=True)
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
 
