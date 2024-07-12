@@ -1,7 +1,7 @@
 import csv
 
 from django.contrib.auth import get_user_model
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from recipes.models import (
+    AmountOfIngredientInRecipe,
     Favorite,
     Ingredient,
     Recipe,
@@ -163,17 +164,15 @@ class RecepiViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request):
         customer = request.user
         ingredients = (
-            ShoppingCart.objects.filter(customer=customer)
+            AmountOfIngredientInRecipe.objects.filter(
+                recipe__shopping_carts__customer=customer,
+            )
             .values(
-                'recipe__ingredients__name',
-                'recipe__ingredients__measurement_unit',
+                name=F('ingredient__name'),
+                measurement_unit=F('ingredient__measurement_unit'),
             )
-            .annotate(
-                amount=Sum(
-                    'recipe__ingredients__amount_of_ingredient__amount',
-                ),
-            )
-            .order_by('recipe__ingredients__name')
+            .annotate(amount=Sum('amount'))
+            .order_by('name')
         )
 
         csv_response = HttpResponse(content_type='text/csv')
@@ -186,9 +185,9 @@ class RecepiViewSet(viewsets.ModelViewSet):
         for ingredient in ingredients:
             writer.writerow(
                 [
-                    ingredient['recipe__ingredients__name'],
+                    ingredient['name'],
                     ingredient['amount'],
-                    ingredient['recipe__ingredients__measurement_unit'],
+                    ingredient['measurement_unit'],
                 ],
             )
 
