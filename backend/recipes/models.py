@@ -30,6 +30,12 @@ class TagInRecipe(models.Model):
         default_related_name = 'tags_in_recipe'
         verbose_name = 'тег в рецепте'
         verbose_name_plural = 'Теги в рецепте'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tag', 'recipe'],
+                name='unique_tag_in_recipe',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.tag} {self.recipe}'
@@ -48,7 +54,7 @@ class Ingredient(models.Model):
         return self.name
 
 
-class AmountOfIngredient(models.Model):
+class AmountOfIngredientInRecipe(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
@@ -60,35 +66,19 @@ class AmountOfIngredient(models.Model):
             MinValueValidator(limit_value=1),
         ],
     )
-
-    class Meta:
-        default_related_name = 'amount_of_ingredient'
-        verbose_name = 'количество ингредента'
-        verbose_name_plural = 'Количество ингредиентов'
-
-    def __str__(self):
-        return f'{self.ingredient} {self.amount}'
-
-
-class IngredientInRecipe(models.Model):
     recipe = models.ForeignKey(
         'Recipe',
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
     )
-    amount_of_ingredient = models.ForeignKey(
-        AmountOfIngredient,
-        on_delete=models.CASCADE,
-        verbose_name='Количество ингредиента в рецепте',
-    )
 
     class Meta:
-        default_related_name = 'ingredient_in_recipe'
-        verbose_name = 'ингредиент в рецепте'
-        verbose_name_plural = 'Ингредиенты в рецепте'
+        default_related_name = 'amount_of_ingredient'
+        verbose_name = 'количество ингредента в рецепте'
+        verbose_name_plural = 'Количество ингредиентов в рецепте'
 
     def __str__(self):
-        return f'{self.amount_of_ingredient} {self.recipe}'
+        return f'{self.ingredient} {self.amount}'
 
 
 class Recipe(models.Model):
@@ -103,9 +93,9 @@ class Recipe(models.Model):
         verbose_name='Автор',
     )
     ingredients = models.ManyToManyField(
-        AmountOfIngredient,
+        Ingredient,
         verbose_name='Ингредиенты в рецепте',
-        through=IngredientInRecipe,
+        through=AmountOfIngredientInRecipe,
     )
     name = models.CharField('Название', max_length=256)
     image = models.ImageField()
@@ -126,7 +116,7 @@ class Recipe(models.Model):
         return self.name
 
 
-class Subscriptions(models.Model):
+class Subscription(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
