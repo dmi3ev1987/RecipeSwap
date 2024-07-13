@@ -224,7 +224,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         instance = super().update(instance, validated_data)
-        instance.save()
         instance.tags.clear()
         instance.ingredients.clear()
 

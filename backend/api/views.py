@@ -72,7 +72,7 @@ class TagViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
 
-class RecepiViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch', 'delete')
     queryset = Recipe.objects.all()
     filter_backends = (
@@ -171,7 +171,7 @@ class RecepiViewSet(viewsets.ModelViewSet):
                 name=F('ingredient__name'),
                 measurement_unit=F('ingredient__measurement_unit'),
             )
-            .annotate(amount=Sum('amount'))
+            .annotate(total_amount=Sum('amount'))
             .order_by('name')
         )
 
@@ -186,7 +186,7 @@ class RecepiViewSet(viewsets.ModelViewSet):
             writer.writerow(
                 [
                     ingredient['name'],
-                    ingredient['amount'],
+                    ingredient['total_amount'],
                     ingredient['measurement_unit'],
                 ],
             )
