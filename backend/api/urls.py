@@ -9,7 +9,7 @@ else:
 
 from .views import (
     IngredientViewSet,
-    RecepiViewSet,
+    RecipeViewSet,
     TagViewSet,
     UserMeAvatarAPIView,
     UserViewSet,
@@ -18,7 +18,7 @@ from .views import (
 router_v1 = Router()
 router_v1.register(r'ingredients', IngredientViewSet)
 router_v1.register(r'tags', TagViewSet)
-router_v1.register(r'recipes', RecepiViewSet, basename='recipe')
+router_v1.register(r'recipes', RecipeViewSet)
 router_v1.register(r'users', UserViewSet)
 
 urlpatterns = [

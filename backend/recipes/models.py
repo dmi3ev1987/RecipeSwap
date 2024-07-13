@@ -76,6 +76,12 @@ class AmountOfIngredientInRecipe(models.Model):
         default_related_name = 'amount_of_ingredient'
         verbose_name = 'количество ингредента в рецепте'
         verbose_name_plural = 'Количество ингредиентов в рецепте'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['ingredient', 'recipe'],
+                name='unique_ingredient_in_recipe',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.ingredient} {self.amount}'
