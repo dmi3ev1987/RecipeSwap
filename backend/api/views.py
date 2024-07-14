@@ -200,7 +200,12 @@ class ShortLinkView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
         recipe_id = baseconv.base64.decode(encoded_id)
         recipe = get_object_or_404(Recipe, pk=recipe_id)
-        return redirect('recipe-detail', pk=recipe.id)
+        recipe_url = request.build_absolute_uri(
+            reverse('recipe-detail', kwargs={'pk': recipe.id}).replace(
+                '/api', '',
+            ),
+        )
+        return redirect(recipe_url)
 
 
 class UserViewSet(UserViewSet):
